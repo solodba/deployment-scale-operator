@@ -44,6 +44,7 @@ type DeploymentScaleReconciler struct {
 	Lock                 sync.RWMutex
 	Tickers              []*time.Ticker
 	Wg                   sync.WaitGroup
+	DeploymentK8sMap     map[string]*appsv1.Deployment
 }
 
 //+kubebuilder:rbac:groups=operator.codehorse.com,resources=deploymentscales,verbs=get;list;watch;create;update;patch;delete
@@ -91,6 +92,8 @@ func (r *DeploymentScaleReconciler) DeleteQueue(deploymentScale *operatorcodehor
 	r.StopLoopTask()
 	if r.IsStopTask(deploymentScale.Spec.EndTime) {
 		go r.RunLoopTask()
+	} else {
+		r.DeploymentShrink()
 	}
 }
 
@@ -103,6 +106,8 @@ func (r *DeploymentScaleReconciler) AddQueue(deploymentScale *operatorcodehorsec
 	r.StopLoopTask()
 	if r.IsStopTask(deploymentScale.Spec.EndTime) {
 		go r.RunLoopTask()
+	} else {
+		r.DeploymentShrink()
 	}
 }
 
@@ -168,6 +173,10 @@ func (r *DeploymentScaleReconciler) DeploymentScale(deploymentScale *operatorcod
 			operatorcodehorsecomv1beta1.L().Error().Msgf("获取[%s]出错!", deploymentK8s.Name)
 			return err
 		}
+		if r.DeploymentK8sMap == nil {
+			r.DeploymentK8sMap = make(map[string]*appsv1.Deployment)
+		}
+		r.DeploymentK8sMap[deploymentK8s.Name] = deploymentK8s
 		deploymentK8s.Spec.Replicas = &deploymentScale.Spec.Replicas
 		err = r.Client.Update(context.TODO(), deploymentK8s)
 		if err != nil {
@@ -176,6 +185,28 @@ func (r *DeploymentScaleReconciler) DeploymentScale(deploymentScale *operatorcod
 		}
 	}
 	return nil
+}
+
+// 缩容deployments
+func (r *DeploymentScaleReconciler) DeploymentShrink() {
+	for _, deploy := range r.DeploymentK8sMap {
+		namespaceName := types.NamespacedName{
+			Name:      deploy.Name,
+			Namespace: deploy.Namespace,
+		}
+		deploymentK8s := &appsv1.Deployment{}
+		err := r.Client.Get(context.TODO(), namespaceName, deploymentK8s)
+		if err != nil {
+			operatorcodehorsecomv1beta1.L().Error().Msgf("[%s]deployment查询失败, 原因: %s", deploy.Name, err.Error())
+			return
+		}
+		deploymentK8s.Spec.Replicas = deploy.Spec.Replicas
+		err = r.Client.Update(context.TODO(), deploymentK8s)
+		if err != nil {
+			operatorcodehorsecomv1beta1.L().Error().Msgf("[%s]deployment缩容失败, 原因: %s", deploy.Name, err.Error())
+			return
+		}
+	}
 }
 
 // 获取任务的启动时间
