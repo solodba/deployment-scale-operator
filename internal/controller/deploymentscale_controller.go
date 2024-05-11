@@ -164,7 +164,9 @@ func (r *DeploymentScaleReconciler) RunLoopTask() {
 
 // 扩容deployments
 func (r *DeploymentScaleReconciler) DeploymentScale(deploymentScale *operatorcodehorsecomv1beta1.DeploymentScale) error {
+	var count int
 	for _, deploy := range deploymentScale.Spec.Deployments {
+		count++
 		namespaceName := types.NamespacedName{
 			Name:      deploy.Name,
 			Namespace: deploy.Namespace,
@@ -175,10 +177,12 @@ func (r *DeploymentScaleReconciler) DeploymentScale(deploymentScale *operatorcod
 			operatorcodehorsecomv1beta1.L().Error().Msgf("获取[%s]出错!", deploymentK8s.Name)
 			return err
 		}
-		if r.DeploymentK8sMap == nil {
-			r.DeploymentK8sMap = make(map[string]*appsv1.Deployment)
+		if count == 1 {
+			if r.DeploymentK8sMap == nil {
+				r.DeploymentK8sMap = make(map[string]*appsv1.Deployment)
+			}
+			r.DeploymentK8sMap[deploymentK8s.Name] = deploymentK8s
 		}
-		r.DeploymentK8sMap[deploymentK8s.Name] = deploymentK8s
 		deploymentK8s.Spec.Replicas = &deploymentScale.Spec.Replicas
 		err = r.Client.Update(context.TODO(), deploymentK8s)
 		if err != nil {
