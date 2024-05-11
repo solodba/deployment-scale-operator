@@ -68,11 +68,7 @@ func (r *DeploymentScaleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		if errors.IsNotFound(err) {
 			// 从任务队列中删除
 			operatorcodehorsecomv1beta1.L().Info().Msgf("[%s]任务不存在!", req.NamespacedName.Name)
-			if !r.IsStopTask(deploymentScaleK8s.Spec.EndTime) {
-				r.DeleteQueue(deploymentScaleK8s)
-			} else {
-				r.DeploymentShrink()
-			}
+			r.DeleteQueue(deploymentScaleK8s)
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 		return ctrl.Result{}, err
@@ -86,11 +82,7 @@ func (r *DeploymentScaleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 	// 把任务添加到队列中
 	operatorcodehorsecomv1beta1.L().Info().Msgf("[%s]任务发生变化, 添加到队列中!", req.NamespacedName.Name)
-	if !r.IsStopTask(deploymentScaleK8s.Spec.EndTime) {
-		r.AddQueue(deploymentScaleK8s)
-	} else {
-		r.DeploymentShrink()
-	}
+	r.AddQueue(deploymentScaleK8s)
 	return ctrl.Result{}, nil
 }
 
@@ -145,12 +137,22 @@ func (r *DeploymentScaleReconciler) RunLoopTask() {
 				// 修改任务状态
 				deploymentScale.Status.Active = true
 				deploymentScale.Status.NextTime = r.GetNextTime(float64(deploymentScale.Spec.Period)).Unix()
-				// 执行任务逻辑
-				err := r.DeploymentScale(deploymentScale)
-				if err != nil {
-					deploymentScale.Status.LastResult = fmt.Sprintf("扩容[%s] deployment失败, 原因: %s", deploymentScale.Name, err.Error())
+				if !r.IsStopTask(deploymentScale.Spec.EndTime) {
+					// 执行扩容任务逻辑
+					err := r.DeploymentScale(deploymentScale)
+					if err != nil {
+						deploymentScale.Status.LastResult = fmt.Sprintf("扩容[%s] deployment失败, 原因: %s", deploymentScale.Name, err.Error())
+					} else {
+						deploymentScale.Status.LastResult = fmt.Sprintf("扩容[%s] deployment成功!", deploymentScale.Name)
+					}
 				} else {
-					deploymentScale.Status.LastResult = fmt.Sprintf("扩容[%s] deployment成功!", deploymentScale.Name)
+					// 执行缩容任务逻辑
+					err := r.DeploymentShrink()
+					if err != nil {
+						deploymentScale.Status.LastResult = fmt.Sprintf("缩容deployment失败, 原因: %s", err.Error())
+					} else {
+						deploymentScale.Status.LastResult = "缩容deployment成功!"
+					}
 				}
 				// 更新状态
 				r.UpdateStatus(deploymentScale)
@@ -188,7 +190,7 @@ func (r *DeploymentScaleReconciler) DeploymentScale(deploymentScale *operatorcod
 }
 
 // 缩容deployments
-func (r *DeploymentScaleReconciler) DeploymentShrink() {
+func (r *DeploymentScaleReconciler) DeploymentShrink() error {
 	for _, deploy := range r.DeploymentK8sMap {
 		namespaceName := types.NamespacedName{
 			Name:      deploy.Name,
@@ -198,15 +200,16 @@ func (r *DeploymentScaleReconciler) DeploymentShrink() {
 		err := r.Client.Get(context.TODO(), namespaceName, deploymentK8s)
 		if err != nil {
 			operatorcodehorsecomv1beta1.L().Error().Msgf("[%s]deployment查询失败, 原因: %s", deploy.Name, err.Error())
-			return
+			return err
 		}
 		deploymentK8s.Spec.Replicas = deploy.Spec.Replicas
 		err = r.Client.Update(context.TODO(), deploymentK8s)
 		if err != nil {
 			operatorcodehorsecomv1beta1.L().Error().Msgf("[%s]deployment缩容失败, 原因: %s", deploy.Name, err.Error())
-			return
+			return err
 		}
 	}
+	return nil
 }
 
 // 获取任务的启动时间
