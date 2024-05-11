@@ -34,7 +34,7 @@ type DeploymentScaleSpec struct {
 	// 任务周期间隔
 	Period int `json:"period"`
 	// 扩展数量
-	Replicas int `json:"replicas"`
+	Replicas int32 `json:"replicas"`
 	// Deployments
 	Deployments []*Deployment `json:"deployments"`
 }
