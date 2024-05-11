@@ -70,6 +70,8 @@ func (r *DeploymentScaleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			operatorcodehorsecomv1beta1.L().Info().Msgf("[%s]任务不存在!", req.NamespacedName.Name)
 			if !r.IsStopTask(deploymentScaleK8s.Spec.EndTime) {
 				r.DeleteQueue(deploymentScaleK8s)
+			} else {
+				r.DeploymentShrink()
 			}
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
@@ -86,6 +88,8 @@ func (r *DeploymentScaleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	operatorcodehorsecomv1beta1.L().Info().Msgf("[%s]任务发生变化, 添加到队列中!", req.NamespacedName.Name)
 	if !r.IsStopTask(deploymentScaleK8s.Spec.EndTime) {
 		r.AddQueue(deploymentScaleK8s)
+	} else {
+		r.DeploymentShrink()
 	}
 	return ctrl.Result{}, nil
 }
