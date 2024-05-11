@@ -137,6 +137,7 @@ func (r *DeploymentScaleReconciler) RunLoopTask() {
 				deploymentScale.Status.Active = true
 				deploymentScale.Status.NextTime = r.GetNextTime(float64(deploymentScale.Spec.Period)).Unix()
 				if !r.IsStopTask(deploymentScale.Spec.EndTime) {
+					operatorcodehorsecomv1beta1.L().Info().Msgf("到了高峰时间段, 开始扩容Deployment!")
 					// 执行扩容任务逻辑
 					err := r.DeploymentScale(deploymentScale)
 					if err != nil {
@@ -145,6 +146,7 @@ func (r *DeploymentScaleReconciler) RunLoopTask() {
 						deploymentScale.Status.LastResult = fmt.Sprintf("扩容[%s] deployment成功!", deploymentScale.Name)
 					}
 				} else {
+					operatorcodehorsecomv1beta1.L().Info().Msgf("过了高峰时间段, 开始缩容Deployment!")
 					// 执行缩容任务逻辑
 					err := r.DeploymentShrink(deploymentScale)
 					if err != nil {
