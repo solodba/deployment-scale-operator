@@ -68,7 +68,9 @@ func (r *DeploymentScaleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		if errors.IsNotFound(err) {
 			// 从任务队列中删除
 			operatorcodehorsecomv1beta1.L().Info().Msgf("[%s]任务不存在!", req.NamespacedName.Name)
-			r.DeleteQueue(deploymentScaleK8s)
+			if !r.IsStopTask(deploymentScaleK8s.Spec.EndTime) {
+				r.DeleteQueue(deploymentScaleK8s)
+			}
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 		return ctrl.Result{}, err
@@ -82,7 +84,9 @@ func (r *DeploymentScaleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 	// 把任务添加到队列中
 	operatorcodehorsecomv1beta1.L().Info().Msgf("[%s]任务发生变化, 添加到队列中!", req.NamespacedName.Name)
-	r.AddQueue(deploymentScaleK8s)
+	if !r.IsStopTask(deploymentScaleK8s.Spec.EndTime) {
+		r.AddQueue(deploymentScaleK8s)
+	}
 	return ctrl.Result{}, nil
 }
 
@@ -90,10 +94,7 @@ func (r *DeploymentScaleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 func (r *DeploymentScaleReconciler) DeleteQueue(deploymentScale *operatorcodehorsecomv1beta1.DeploymentScale) {
 	delete(r.DeploymentScaleQueue, deploymentScale.Name)
 	r.StopLoopTask()
-	if r.IsStopTask(deploymentScale.Spec.EndTime) {
-		go r.RunLoopTask()
-	}
-	r.DeploymentShrink()
+	go r.RunLoopTask()
 }
 
 // 从队列中添加任务
@@ -103,10 +104,7 @@ func (r *DeploymentScaleReconciler) AddQueue(deploymentScale *operatorcodehorsec
 	}
 	r.DeploymentScaleQueue[deploymentScale.Name] = deploymentScale
 	r.StopLoopTask()
-	if r.IsStopTask(deploymentScale.Spec.EndTime) {
-		go r.RunLoopTask()
-	}
-	r.DeploymentShrink()
+	go r.RunLoopTask()
 }
 
 // 执行任务
@@ -240,9 +238,9 @@ func (r *DeploymentScaleReconciler) IsStopTask(endTime string) bool {
 	curDuration := time.Hour*time.Duration(now.Hour()) + time.Minute*time.Duration(now.Minute())
 	endDuration := time.Hour*time.Duration(endHour) + time.Minute*time.Duration(endMin)
 	if (curDuration - endDuration) >= 0 {
-		return false
-	} else {
 		return true
+	} else {
+		return false
 	}
 }
 
