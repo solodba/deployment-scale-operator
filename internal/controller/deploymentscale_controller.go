@@ -122,7 +122,13 @@ func (r *DeploymentScaleReconciler) RunLoopTask() {
 		// 更新状态
 		r.UpdateStatus(deploymentScale)
 		// 创建定时器
-		ticker := time.NewTicker(r.GetDelaySeconds(deploymentScale.Spec.StartTime))
+		deplay := r.GetDelaySeconds(deploymentScale.Spec.StartTime)
+		if deplay.Hours() >= 1 {
+			operatorcodehorsecomv1beta1.L().Info().Msgf("[%s]任务在%.1f小时后开始执行", deploymentScale.Name, deplay.Hours())
+		} else {
+			operatorcodehorsecomv1beta1.L().Info().Msgf("[%s]任务在%.1f分钟后开始执行", deploymentScale.Name, deplay.Minutes())
+		}
+		ticker := time.NewTicker(deplay)
 		r.Tickers = append(r.Tickers, ticker)
 		r.Wg.Add(1)
 		go func(deploymentScale *operatorcodehorsecomv1beta1.DeploymentScale) {
