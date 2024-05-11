@@ -45,6 +45,8 @@ type Deployment struct {
 	Name string `json:"name"`
 	// deployment所在命名空间
 	Namespace string `json:"namespace"`
+	// 缩容数量
+	Replicas int32 `json:"replicas"`
 }
 
 // DeploymentScaleStatus defines the observed state of DeploymentScale

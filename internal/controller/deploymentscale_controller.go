@@ -44,7 +44,6 @@ type DeploymentScaleReconciler struct {
 	Lock                 sync.RWMutex
 	Tickers              []*time.Ticker
 	Wg                   sync.WaitGroup
-	DeploymentK8sMap     map[string]*appsv1.Deployment
 }
 
 //+kubebuilder:rbac:groups=operator.codehorse.com,resources=deploymentscales,verbs=get;list;watch;create;update;patch;delete
@@ -147,11 +146,11 @@ func (r *DeploymentScaleReconciler) RunLoopTask() {
 					}
 				} else {
 					// 执行缩容任务逻辑
-					err := r.DeploymentShrink()
+					err := r.DeploymentShrink(deploymentScale)
 					if err != nil {
-						deploymentScale.Status.LastResult = fmt.Sprintf("缩容deployment失败, 原因: %s", err.Error())
+						deploymentScale.Status.LastResult = fmt.Sprintf("缩容[%s] deployment失败, 原因: %s", deploymentScale.Name, err.Error())
 					} else {
-						deploymentScale.Status.LastResult = "缩容deployment成功!"
+						deploymentScale.Status.LastResult = fmt.Sprintf("扩容[%s] deployment成功!", deploymentScale.Name)
 					}
 				}
 				// 更新状态
@@ -164,9 +163,7 @@ func (r *DeploymentScaleReconciler) RunLoopTask() {
 
 // 扩容deployments
 func (r *DeploymentScaleReconciler) DeploymentScale(deploymentScale *operatorcodehorsecomv1beta1.DeploymentScale) error {
-	var count int
 	for _, deploy := range deploymentScale.Spec.Deployments {
-		count++
 		namespaceName := types.NamespacedName{
 			Name:      deploy.Name,
 			Namespace: deploy.Namespace,
@@ -176,12 +173,6 @@ func (r *DeploymentScaleReconciler) DeploymentScale(deploymentScale *operatorcod
 		if err != nil {
 			operatorcodehorsecomv1beta1.L().Error().Msgf("获取[%s]出错!", deploymentK8s.Name)
 			return err
-		}
-		if count == 1 {
-			if r.DeploymentK8sMap == nil {
-				r.DeploymentK8sMap = make(map[string]*appsv1.Deployment)
-			}
-			r.DeploymentK8sMap[deploymentK8s.Name] = deploymentK8s
 		}
 		deploymentK8s.Spec.Replicas = &deploymentScale.Spec.Replicas
 		err = r.Client.Update(context.TODO(), deploymentK8s)
@@ -194,8 +185,8 @@ func (r *DeploymentScaleReconciler) DeploymentScale(deploymentScale *operatorcod
 }
 
 // 缩容deployments
-func (r *DeploymentScaleReconciler) DeploymentShrink() error {
-	for _, deploy := range r.DeploymentK8sMap {
+func (r *DeploymentScaleReconciler) DeploymentShrink(deploymentScale *operatorcodehorsecomv1beta1.DeploymentScale) error {
+	for _, deploy := range deploymentScale.Spec.Deployments {
 		namespaceName := types.NamespacedName{
 			Name:      deploy.Name,
 			Namespace: deploy.Namespace,
@@ -203,13 +194,13 @@ func (r *DeploymentScaleReconciler) DeploymentShrink() error {
 		deploymentK8s := &appsv1.Deployment{}
 		err := r.Client.Get(context.TODO(), namespaceName, deploymentK8s)
 		if err != nil {
-			operatorcodehorsecomv1beta1.L().Error().Msgf("[%s]deployment查询失败, 原因: %s", deploy.Name, err.Error())
+			operatorcodehorsecomv1beta1.L().Error().Msgf("获取[%s]出错!", deploymentK8s.Name)
 			return err
 		}
-		deploymentK8s.Spec.Replicas = deploy.Spec.Replicas
+		deploymentK8s.Spec.Replicas = &deploy.Replicas
 		err = r.Client.Update(context.TODO(), deploymentK8s)
 		if err != nil {
-			operatorcodehorsecomv1beta1.L().Error().Msgf("[%s]deployment缩容失败, 原因: %s", deploy.Name, err.Error())
+			operatorcodehorsecomv1beta1.L().Error().Msgf("更新[%s]出错!", deploymentK8s.Name)
 			return err
 		}
 	}

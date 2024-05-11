@@ -14,5 +14,7 @@ spec:
   deployments:
     - name: test-deploy-1
       namespace: default
+      replicas: 1
     - name: test-deploy-2
       namespace: test
+      replicas: 1
