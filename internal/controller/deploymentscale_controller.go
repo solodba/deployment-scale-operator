@@ -92,9 +92,8 @@ func (r *DeploymentScaleReconciler) DeleteQueue(deploymentScale *operatorcodehor
 	r.StopLoopTask()
 	if r.IsStopTask(deploymentScale.Spec.EndTime) {
 		go r.RunLoopTask()
-	} else {
-		r.DeploymentShrink()
 	}
+	r.DeploymentShrink()
 }
 
 // 从队列中添加任务
@@ -106,9 +105,8 @@ func (r *DeploymentScaleReconciler) AddQueue(deploymentScale *operatorcodehorsec
 	r.StopLoopTask()
 	if r.IsStopTask(deploymentScale.Spec.EndTime) {
 		go r.RunLoopTask()
-	} else {
-		r.DeploymentShrink()
 	}
+	r.DeploymentShrink()
 }
 
 // 执行任务
