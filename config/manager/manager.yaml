@@ -48,8 +48,8 @@ spec:
       #             operator: In
       #             values:
       #               - linux
-      securityContext:
-        runAsNonRoot: true
+      # securityContext:
+        # runAsNonRoot: true
         # TODO(user): For common cases that do not require escalating privileges
         # it is recommended to ensure that all your Pods/Containers are restrictive.
         # More info: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
@@ -85,10 +85,10 @@ spec:
         # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
         resources:
           limits:
-            cpu: 500m
-            memory: 128Mi
+            cpu: 1000m
+            memory: 2048Mi
           requests:
-            cpu: 10m
-            memory: 64Mi
+            cpu: 500m
+            memory: 1024Mi
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

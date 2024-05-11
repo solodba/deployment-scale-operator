@@ -6,4 +6,13 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: deploymentscale-sample
 spec:
-  # TODO(user): Add fields here
+  active: true
+  startTime: "11:15"
+  endTime: "11:20"
+  period: 1
+  replicas: 2
+  deployments:
+    - name: test-deploy-1
+      namespace: default
+    - name: test-deploy-2
+      namesapce: test
