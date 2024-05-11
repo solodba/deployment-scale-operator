@@ -25,21 +25,43 @@ import (
 
 // DeploymentScaleSpec defines the desired state of DeploymentScale
 type DeploymentScaleSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// 任务是否开启
+	Active bool `json:"active"`
+	// 任务开始时间
+	StartTime string `json:"startTime"`
+	// 任务结束时间
+	EndTime string `json:"endTime"`
+	// 任务周期间隔
+	Period int `json:"period"`
+	// 扩展数量
+	Replicas int `json:"replicas"`
+	// Deployments
+	Deployments []*Deployment `json:"deployments"`
+}
 
-	// Foo is an example field of DeploymentScale. Edit deploymentscale_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+// Deployment
+type Deployment struct {
+	// deployment名称
+	Name string `json:"name"`
+	// deployment所在命名空间
+	Namespace string `json:"namespace"`
 }
 
 // DeploymentScaleStatus defines the observed state of DeploymentScale
 type DeploymentScaleStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// 任务状态
+	Active bool `json:"active"`
+	// 任务下次启动时间
+	NextTime int64 `json:"nextTime"`
+	// 任务记录
+	LastResult string `json:"lastResult"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=`.status.active`
+//+kubebuilder:printcolumn:name="NextTime",type="integer",JSONPath=`.status.nextTime`
+//+kubebuilder:printcolumn:name="LastResult",type="string",JSONPath=`.status.lastResult`
 
 // DeploymentScale is the Schema for the deploymentscales API
 type DeploymentScale struct {
