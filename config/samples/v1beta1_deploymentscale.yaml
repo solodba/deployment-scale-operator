@@ -15,4 +15,4 @@ spec:
     - name: test-deploy-1
       namespace: default
     - name: test-deploy-2
-      namesapce: test
+      namespace: test
